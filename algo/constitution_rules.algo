@@ -1,0 +1,479 @@
+# constitution_rules.algo
+# Language: ConstitutionAlgo v1
+# Uses: data_model.json, interpretation_profiles.json, verdict_types.json
+
+############################################################
+# ARTICLE I — LEGISLATIVE
+############################################################
+
+RULE R-ArtI-§7-Origination
+  ClauseRef: { id: "Art.I §7 cl.1", title: "Origination of Revenue Bills", kind:"Article", ratified_on:"1788-06-21" }
+  Trigger:
+    instrument :: NormativeInstrument where instrument.type == "statute" AND instrument.subject_tags includes "raise_revenue"
+  Test:
+    require instrument.enacted_by.chamber_of_origin == "House of Representatives"
+  Verdict:
+    pass -> { result: CONSTITUTIONAL }
+    fail -> { result: STRUCTURALLY_INVALID, notes: "Revenue bill did not originate in House." }
+
+RULE R-ArtI-§7-BicameralismPresentment
+  ClauseRef: { id: "Art.I §7 cl.2-3", title: "Bicameralism & Presentment", kind:"Article", ratified_on:"1788-06-21" }
+  Trigger:
+    instrument :: NormativeInstrument where instrument.level == "federal" AND instrument.type == "statute"
+  Test:
+    require PassedBy(House) AND PassedBy(Senate) AND PresentedTo(President)
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> STRUCTURALLY_INVALID
+
+RULE R-ArtI-§8-TaxPower
+  ClauseRef: { id: "Art.I §8 cl.1", title: "Tax and Spend", kind:"Article", ratified_on:"1788-06-21" }
+  Trigger:
+    instrument :: NormativeInstrument where enum_power_claims includes "Tax"
+  Test:
+    context.tax_base in ["income","imports","other"] OR (context.tax_base == "capitation" -> must satisfy apportionment under Art.I §9 cl.4 unless Amendment XVI applies)
+    If context.tax_base == "income" and instrument.level == "federal": see Amend.XVI rule (R-AmendXVI)
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+RULE R-ArtI-§8-Commerce
+  ClauseRef: { id: "Art.I §8 cl.3", title: "Commerce", kind:"Article", ratified_on:"1788-06-21" }
+  Trigger:
+    instrument :: NormativeInstrument where enum_power_claims includes "Commerce"
+  Test (deterministic using profile.parameters.commerce_categories_enabled):
+    Determine bucket := s.facts.context.commerce_bucket
+    require bucket in profile.parameters.commerce_categories_enabled
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+RULE R-ArtI-§8-NecessaryProper
+  ClauseRef: { id: "Art.I §8 cl.18", title: "Necessary & Proper", kind:"Article", ratified_on:"1788-06-21" }
+  Trigger:
+    instrument :: NormativeInstrument where enum_power_claims includes "NP"
+  Test:
+    params := profile.parameters.necessary_and_proper_test (if absent, defaults plainly_adapted=true, not_prohibited=true, within_scope_of_end=true)
+    require params.plainly_adapted == true AND params.not_prohibited == true AND params.within_scope_of_end == true
+    AND EndPower in instrument.enum_power_claims minus {"NP"}  # cannot stand alone
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+RULE R-ArtI-§9-NoBillOfAttainder
+  ClauseRef: { id: "Art.I §9 cl.3", title: "No Bill of Attainder", kind:"Article", ratified_on:"1788-06-21" }
+  Trigger:
+    instrument :: NormativeInstrument where instrument.type in ["statute","resolution"]
+  Test:
+    require NOT (instrument.subject_tags includes "punish_named_persons_without_trial")
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+RULE R-ArtI-§9-NoExPostFacto
+  ClauseRef: { id: "Art.I §9 cl.3", title: "No Ex Post Facto", kind:"Article", ratified_on:"1788-06-21" }
+  Trigger:
+    instrument :: NormativeInstrument where instrument.type in ["statute","regulation"]
+  Test:
+    require NOT (instrument.subject_tags includes "retroactive_criminalization_or_punishment")
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+RULE R-ArtI-§10-StateLimits
+  ClauseRef: { id: "Art.I §10", title: "Restrictions on States", kind:"Article", ratified_on:"1788-06-21" }
+  Trigger:
+    instrument :: NormativeInstrument where instrument.level == "state"
+  Test:
+    require NOT (instrument.subject_tags matches any of:
+      "treaty", "coin_money", "bills_of_credit", "impair_contracts", "duties_on_imports_exports_outside_exceptions")
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+############################################################
+# ARTICLE II — EXECUTIVE
+############################################################
+
+RULE R-ArtII-§1-Qualifications-President
+  ClauseRef: { id: "Art.II §1", title: "President Qualifications & Oath", kind:"Article", ratified_on:"1788-06-21" }
+  Trigger:
+    office :: Office where office.title == "President"
+  Test:
+    require office.qualification_facts.natural_born == true
+    require office.qualification_facts.age >= 35
+    require office.qualification_facts.years_citizen >= 14
+    require office.oath_taken == true
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> STRUCTURALLY_INVALID
+
+RULE R-ArtII-§2-Treaties-Consent
+  ClauseRef: { id: "Art.II §2", title: "Treaties & Appointments", kind:"Article", ratified_on:"1788-06-21" }
+  Trigger:
+    action :: Action where action.action_type == "TreatyConclusion"
+  Test:
+    require SenateConsent(2/3 present) == true
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> STRUCTURALLY_INVALID
+
+############################################################
+# ARTICLE III — JUDICIARY
+############################################################
+
+RULE R-ArtIII-§3-Treason
+  ClauseRef: { id: "Art.III §3", title: "Treason Defined", kind:"Article", ratified_on:"1788-06-21" }
+  Trigger:
+    action :: Action where action.action_type == "CriminalCharge" AND action.facts.offense == "treason"
+  Test:
+    require action.facts["levying_war_or_adhering_enemies"] == true
+    require action.facts["two_witnesses_same_overt_act"] == true OR action.facts["open_court_confession"] == true
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+############################################################
+# ARTICLE IV — STATES & GUARANTEES
+############################################################
+
+RULE R-ArtIV-§2-PrivilegesImmunities-States
+  ClauseRef: { id: "Art.IV §2", title: "Privileges and Immunities", kind:"Article", ratified_on:"1788-06-21" }
+  Trigger:
+    action :: Action where action.action_type in ["VotingRegulation","OccupationalLicensing","TravelRestriction"] AND action.actor.level == "state"
+  Test:
+    require NOT DiscriminateAgainst(USCitizensFromOtherStates)  # boolean from facts
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+RULE R-ArtIV-§4-RepublicanForm
+  ClauseRef: { id: "Art.IV §4", title: "Guarantee Clause", kind:"Article", ratified_on:"1788-06-21" }
+  Trigger:
+    action :: Action where action.actor.level == "federal" AND action.action_type == "StateGovernmentGuarantee"
+  Test:
+    # Political question risk; make deterministic: require elected legislature exists and periodic elections held <= 2 years (House) / <= 6 years (Senate).
+    require state_has_elected_legislature == true AND periodic_elections == true
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> NONJUSTICIABLE  # or UNCONSTITUTIONAL if explicit abolition of elections
+
+############################################################
+# ARTICLE V — AMENDMENT
+############################################################
+
+RULE R-ArtV-AmendmentProcess
+  ClauseRef: { id: "Art.V", title: "Amendment Process", kind:"Article", ratified_on:"1788-06-21" }
+  Trigger:
+    instrument :: NormativeInstrument where instrument.type == "constitutional_amendment"
+  Test:
+    require ProposedBy("2/3 both Houses") OR ConventionCalledBy("2/3 states")
+    require RatifiedBy("3/4 states") == true
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> STRUCTURALLY_INVALID
+
+############################################################
+# ARTICLE VI — SUPREMACY, OATH, NO RELIGIOUS TEST
+############################################################
+
+RULE R-ArtVI-Supremacy
+  ClauseRef: { id: "Art.VI", title: "Supremacy Clause", kind:"Article", ratified_on:"1788-06-21" }
+  Trigger:
+    conflict :: { federal_norm: NormativeInstrument, state_norm: NormativeInstrument }
+  Test:
+    if Valid(federal_norm) and SameDomainConflict(federal_norm, state_norm):
+       state_norm <- PREEMPTED_BY_SUPREMACY
+  Verdict:
+    pass -> CONSTITUTIONAL (federal persists)
+    fail -> n/a (handled as Preemption decision)
+
+RULE R-ArtVI-NoReligiousTest
+  ClauseRef: { id: "Art.VI", title: "No Religious Test", kind:"Article", ratified_on:"1788-06-21" }
+  Trigger:
+    action :: Action where action.action_type == "Appointment" OR "BallotAccessRegulation"
+  Test:
+    require NOT action.facts.requires_religious_affirmation
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+############################################################
+# BILL OF RIGHTS — AMENDMENTS I–X
+############################################################
+
+# Speech
+RULE R-AmendI-Speech
+  ClauseRef: { id: "Amend.I", title: "Freedom of Speech", kind:"Amendment", ratified_on:"1791-12-15" }
+  Trigger:
+    action :: Action where action.action_type == "ExpressionRegulation"
+  Test:
+    if actor.level in ["state","local"] and profile.parameters.incorporation_map.Speech != true:
+       return NONJUSTICIABLE
+    cat := action.facts.speech_category :: data_model.json#/enums/SpeechCategory
+    if cat in profile.parameters.speech_unprotected_categories:
+       return CONSTITUTIONAL  # regulation permitted as to that category
+    else:
+       require action.facts.is_content_neutral == profile.parameters.speech_content_neutrality_required
+       require action.facts.time_place_manner_narrow_tailoring == true
+       require action.facts.alternative_channels_open == true
+  Verdict:
+    all_requirements_true -> CONSTITUTIONAL
+    else -> UNCONSTITUTIONAL
+
+# Press (mirrors Speech)
+RULE R-AmendI-Press ... (same structure as Speech; use Press key in incorporation_map)
+
+# Religion — Free Exercise
+RULE R-AmendI-FreeExercise
+  ClauseRef: { id: "Amend.I", title: "Free Exercise", kind:"Amendment", ratified_on:"1791-12-15" }
+  Trigger:
+    action :: Action where action.action_type == "ReligiousRegulation"
+  Test:
+    if neutral_and_generally_applicable == true:
+       return CONSTITUTIONAL
+    else:
+       require CompellingInterest == true AND LeastRestrictiveMeans == true
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+# Establishment
+RULE R-AmendI-Establishment
+  ClauseRef: { id: "Amend.I", title: "Establishment", kind:"Amendment", ratified_on:"1791-12-15" }
+  Trigger:
+    action :: Action where action.facts["government_endorsement_religion"] == true OR action.facts["funding_religion"] == true
+  Test:
+    require NoOfficialChurch == true
+    require NoPreferenceAmongFaiths == true
+    require SecularPurpose == true AND PrimaryEffectNotAdvancingReligion == true
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+# Assembly / Petition
+RULE R-AmendI-AssemblyPetition
+  ClauseRef: { id: "Amend.I", title: "Assembly & Petition", kind:"Amendment", ratified_on:"1791-12-15" }
+  Trigger:
+    action :: Action where action.action_type == "ExpressionRegulation" AND action.facts.mode == "assembly" OR "petition"
+  Test:
+    apply time/place/manner test as in R-AmendI-Speech
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+# Arms
+RULE R-AmendII-Arms
+  ClauseRef: { id: "Amend.II", title: "Right to Keep and Bear Arms", kind:"Amendment", ratified_on:"1791-12-15" }
+  Trigger:
+    action :: Action where action.action_type == "ArmsRegulation"
+  Test:
+    arms_type := action.facts.arms_category
+    if arms_type in profile.parameters.arms_bearable_categories:
+        require regulation_is_history_consistent_or_objective == true
+    else:
+        return CONSTITUTIONAL  # outside protected category
+  Verdict:
+    requirement_true -> CONSTITUTIONAL
+    else -> UNCONSTITUTIONAL
+
+# Quartering
+RULE R-AmendIII-Quartering
+  ClauseRef: { id: "Amend.III", title: "Quartering of Soldiers", kind:"Amendment", ratified_on:"1791-12-15" }
+  Trigger:
+    action :: Action where action.action_type == "Quartering"
+  Test:
+    if action.facts.time == "peacetime":
+        require action.facts.owner_consent == true
+    else if action.facts.time == "wartime":
+        require action.facts.law_prescribes_manner == true
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+# Searches & Seizures
+RULE R-AmendIV-SearchSeizure
+  ClauseRef: { id: "Amend.IV", title: "Search & Seizure", kind:"Amendment", ratified_on:"1791-12-15" }
+  Trigger:
+    action :: Action where action.action_type == "SearchSeizure"
+  Test:
+    pc_thresh := profile.parameters.probable_cause_threshold
+    if action.facts.warrant == true:
+        require action.facts.probability_of_illegality >= pc_thresh
+        require action.facts.warrant_particularity == true
+    else:
+        require action.facts.exception in profile.parameters.search_reasonableness_matrix.exceptions
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+# Criminal Procedure (V–VIII) — selected exemplars
+
+RULE R-AmendV-DoubleJeopardy
+  ClauseRef: { id: "Amend.V", title: "Double Jeopardy", kind:"Amendment", ratified_on:"1791-12-15" }
+  Trigger:
+    proceeding :: Proceeding where proceeding.type == "criminal" AND action :: Action where action.action_type == "CriminalCharge"
+  Test:
+    require NOT (action.facts.same_offense_same_sovereign_reprosecution)  # dual-sovereign treated as different; can be toggled via profile if desired
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+RULE R-AmendV-SelfIncrimination
+  ClauseRef: { id: "Amend.V", title: "Self-Incrimination", kind:"Amendment", ratified_on:"1791-12-15" }
+  Trigger:
+    proceeding :: Proceeding where proceeding.type == "criminal"
+  Test:
+    require NOT compelled_testimony_without_immunity
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+RULE R-AmendV-Takings
+  ClauseRef: { id: "Amend.V", title: "Takings", kind:"Amendment", ratified_on:"1791-12-15" }
+  Trigger:
+    action :: Action where action.action_type == "PropertyTaking"
+  Test:
+    require profile.parameters.takings_public_use_required ? action.facts.public_use == true : true
+    require action.facts.just_compensation_paid == true
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+RULE R-AmendVI-SpeedyPublicTrial
+  ClauseRef: { id: "Amend.VI", title: "Speedy & Public Trial, Jury, Counsel", kind:"Amendment", ratified_on:"1791-12-15" }
+  Trigger:
+    proceeding :: Proceeding where proceeding.type == "criminal"
+  Test:
+    require proceeding.duration_days_accusation_to_trial <= profile.parameters.speedy_trial_max_days
+    require proceeding.public_access >= profile.parameters.public_trial_visibility_minimum
+    require proceeding.counsel_provided == true
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+RULE R-AmendVIII-ExcessiveBailFines
+  ClauseRef: { id: "Amend.VIII", title: "Excessive Bail, Fines, Cruel & Unusual", kind:"Amendment", ratified_on:"1791-12-15" }
+  Trigger:
+    action :: Action where action.action_type in ["BailSetting","FineImposition"] OR punishment :: Punishment
+  Test:
+    if action.action_type == "BailSetting":
+      require action.facts.bail_amount_usd <= profile.parameters.excessive_bail_multiplier_vs_max_fine * action.facts.stat_max_fine_usd
+    if action.action_type == "FineImposition":
+      require action.facts.fine_amount_usd <= profile.parameters.excessive_fine_multiplier_vs_harm * action.facts.harm_value_usd
+    if punishment provided:
+      require (punishment.severity_score_0_100 < profile.parameters.cruel_unusual_threshold.severity_min)
+         OR (punishment.unusualness_percentile_0_100 < profile.parameters.cruel_unusual_threshold.unusualness_percentile_min)
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+RULE R-AmendIX-Unenumerated
+  ClauseRef: { id: "Amend.IX", title: "Unenumerated Rights", kind:"Amendment", ratified_on:"1791-12-15" }
+  Trigger:
+    action :: Action where action.facts.claimed_unenumerated_right in profile.parameters.substantive_due_process_catalog
+  Test:
+    require NOT (countervailing_compelling_interest_without_LRM)  # if compelling interest but no LRM -> fail
+  Verdict:
+    pass -> CONSTITUTIONAL (protect right)
+    fail -> UNCONSTITUTIONAL
+
+RULE R-AmendX-ReservedPowers
+  ClauseRef: { id: "Amend.X", title: "Reserved Powers", kind:"Amendment", ratified_on:"1791-12-15" }
+  Trigger:
+    instrument :: NormativeInstrument where instrument.level == "federal"
+  Test:
+    require instrument.enum_power_claims intersects EnumeratedPowers OR instrument justified by NP tied to enumerated end
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+############################################################
+# RECONSTRUCTION & LATER AMENDMENTS
+############################################################
+
+RULE R-AmendXIII-Abolition
+  ClauseRef: { id: "Amend.XIII §1", title: "Abolition of Slavery", kind:"Amendment", ratified_on:"1865-12-06" }
+  Trigger:
+    action :: Action where action.facts.involuntary_servitude_imposed == true
+  Test:
+    if action.facts.as_punishment_for_crime == true:
+       return CONSTITUTIONAL
+    else:
+       return UNCONSTITUTIONAL
+
+RULE R-AmendXIV-DueProcess-EqualProtection
+  ClauseRef: { id: "Amend.XIV §1", title: "Due Process & Equal Protection", kind:"Amendment", ratified_on:"1868-07-09" }
+  Trigger:
+    action :: Action by state/local government affecting life, liberty, property or classification of persons
+  Test:
+    # Procedural DP
+    require all profile.parameters.due_process_procedural_minima in proceeding.steps_completed (when proceeding exists) OR if action affects rights without process -> UNCONSTITUTIONAL
+    # Equal Protection deterministic tiers:
+    class := action.facts.classification
+    tier := DetermineTier(class, profile.parameters.equal_protection_tiers)
+    if tier == "strict": require all profile.parameters.strict_test_requirements satisfied
+    if tier == "intermediate": require all profile.parameters.intermediate_test_requirements satisfied
+    if tier == "rational": require all profile.parameters.rational_basis_requirements satisfied
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+RULE R-AmendXV-XIX-XXIV-XXVI-Voting
+  ClauseRef: { id: "Amend.XV | Amend.XIX | Amend.XXIV | Amend.XXVI", title: "Suffrage Protections", kind:"Amendment", ratified_on:"various" }
+  Trigger:
+    action :: Action where action.action_type == "VotingRegulation"
+  Test:
+    require NOT (denial_or_abridgment_based_on in ["race","color","previous_condition_of_servitude","sex","failure_to_pay_poll_tax","age>=18"])
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL
+
+RULE R-AmendXVI-IncomeTax
+  ClauseRef: { id: "Amend.XVI", title: "Income Tax", kind:"Amendment", ratified_on:"1913-02-03" }
+  Trigger:
+    instrument :: NormativeInstrument where instrument.type == "statute" AND s.facts.context.tax_base == "income"
+  Test:
+    return CONSTITUTIONAL  # federal income tax not subject to apportionment
+  Verdict:
+    pass -> CONSTITUTIONAL
+
+RULE R-AmendXVIII-Prohibition & R-AmendXXI-Repeal
+  ClauseRef: { id: "Amend.XVIII", title: "Alcohol Prohibition"; id2: "Amend.XXI", title:"Repeal" }
+  Trigger:
+    instrument :: NormativeInstrument about alcohol manufacture/sale
+  Test:
+    if date < 1933-12-05: apply XVIII -> possibly CONSTITUTIONAL to prohibit
+    if date >= 1933-12-05: apply XXI -> states may regulate; federal blanket prohibition invalid
+  Verdict:
+    timeline-driven via precedence_and_conflict.algo Step 5 (AmendmentSupersedes)
+
+RULE R-AmendXXII-PresidentialTermLimits
+  ClauseRef: { id: "Amend.XXII", title: "Term Limits", kind:"Amendment", ratified_on:"1951-02-27" }
+  Trigger:
+    office :: Office where office.title == "President"
+  Test:
+    require CountElectionsWon(office.holder) <= 2 AND YearsServedWhenSucceeded <= 10
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> STRUCTURALLY_INVALID
+
+RULE R-AmendXXV-SuccessionDisability
+  ClauseRef: { id: "Amend.XXV", title: "Presidential Succession & Disability", kind:"Amendment", ratified_on:"1967-02-10" }
+  Trigger:
+    action :: Action where action.action_type in ["Vacancy","PresidentialDisability"]
+  Test:
+    require procedures followed per Sections 1–4 (vice-presidential nomination & majority of both Houses; written declarations)
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> STRUCTURALLY_INVALID
+
+RULE R-AmendXXVII-CompensationDelay
+  ClauseRef: { id: "Amend.XXVII", title: "Congressional Pay Changes", kind:"Amendment", ratified_on:"1992-05-07" }
+  Trigger:
+    instrument :: NormativeInstrument where instrument.level=="federal" AND subject_tags includes "congressional_compensation"
+  Test:
+    require change_effective_after_next_election == true
+  Verdict:
+    pass -> CONSTITUTIONAL
+    fail -> UNCONSTITUTIONAL

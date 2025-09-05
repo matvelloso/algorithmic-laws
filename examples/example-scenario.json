@@ -1,0 +1,59 @@
+{
+    "id": "ex1",
+    "profile_id": "liberty_forward_balanced",
+    "facts": {
+      "instruments": [
+        {
+          "id": "city-park-ordinance",
+          "level": "local",
+          "type": "ordinance",
+          "title": "Park Leafletting Ban",
+          "enacted_on": "2025-01-15",
+          "enacted_by": { "id": "CityCouncil", "name": "Sample City Council", "level": "local", "branch": "legislative" },
+          "subject_tags": ["expression", "parks"]
+        }
+      ],
+      "actions": [
+        {
+          "id": "act1",
+          "actor": { "id": "CityCouncil", "name": "Sample City Council", "level": "local", "branch": "legislative" },
+          "date": "2025-02-01",
+          "action_type": "ExpressionRegulation",
+          "facts": {
+            "speech_category": "political",
+            "is_content_neutral": false,
+            "time_place_manner_narrow_tailoring": false,
+            "alternative_channels_open": false
+          }
+        },
+        {
+          "id": "act2",
+          "actor": { "id": "CityPolice", "name": "Sample City Police", "level": "local", "branch": "executive" },
+          "date": "2025-02-02",
+          "action_type": "SearchSeizure",
+          "facts": {
+            "warrant": false,
+            "exception": null
+          }
+        }
+      ],
+      "proceedings": [
+        {
+          "id": "p1",
+          "type": "criminal",
+          "forum": { "id": "CityCourt", "name": "City Court", "level": "local", "branch": "judicial" },
+          "public_access": true,
+          "counsel_provided": true,
+          "steps_completed": ["notice", "neutral_decisionmaker", "opportunity_to_be_heard", "record_of_proceedings"],
+          "duration_days_accusation_to_trial": 90
+        }
+      ],
+      "context": {
+        "commerce_bucket": "interstate",
+        "tax_base": "other",
+        "war_state": "none",
+        "territorial_applicability": "states"
+      }
+    }
+  }
+  

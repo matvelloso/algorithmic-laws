@@ -1,0 +1,93 @@
+{
+  "$schema": "https://example.org/constitution-engine/schema/interpretation-profiles.v1.json",
+  "meta": {"version": "1.0.0", "created": "2025-09-05"},
+  "profiles": [
+    {
+      "id": "original_public_meaning_1791_1868",
+      "label": "Original Public Meaning (1791/1868 blend)",
+      "notes": "Text as understood at ratification of the Bill of Rights (1791) and Reconstruction Amendments (1868).",
+      "parameters": {
+        "incorporation": "selective",
+        "incorporation_map": {
+          "Speech": true, "Press": true, "ReligionFreeExercise": true, "ReligionNoEstablishment": true,
+          "Assembly": true, "Petition": true, "Arms": true, "Quartering": true,
+          "SearchSeizure": true, "GrandJury": false, "DoubleJeopardy": true, "SelfIncrimination": true,
+          "DueProcess": true, "JustCompensation": true, "SpeedyTrial": true, "PublicTrial": true,
+          "ImpartialJury": true, "NoticeAccusation": true, "Confrontation": true,
+          "CompulsoryProcess": true, "AssistanceOfCounsel": true, "ExcessiveBail": true,
+          "ExcessiveFines": true, "CruelUnusualPunishment": true
+        },
+        "probable_cause_threshold": 0.50,
+        "search_reasonableness_matrix": {
+          "warrant_required_default": true,
+          "exceptions": ["consent", "exigent", "plain_view", "search_incident_to_arrest", "automobile"]
+        },
+        "speedy_trial_max_days": 180,
+        "public_trial_visibility_minimum": "room_open_to_public_media",
+        "excessive_bail_multiplier_vs_max_fine": 10.0,
+        "excessive_fine_multiplier_vs_harm": 4.0,
+        "cruel_unusual_threshold": {"severity_min": 80, "unusualness_percentile_min": 80},
+        "takings_public_use_required": true,
+        "due_process_procedural_minima": [
+          "notice", "neutral_decisionmaker", "opportunity_to_be_heard", "record_of_proceedings"
+        ],
+        "speech_unprotected_categories": ["obscenity", "incitement", "true_threat", "fraud", "child_exploitation"],
+        "speech_content_neutrality_required": true,
+        "arms_bearable_categories": ["handgun", "long_gun", "shotgun", "nonlethal"],
+        "commerce_categories_enabled": ["channels", "instrumentalities", "substantial_effects", "foreign", "interstate", "indian"],
+        "equal_protection_tiers": {
+          "suspect": {"classes": ["race", "national_origin", "religion"], "test": "strict"},
+          "quasi_suspect": {"classes": ["sex", "illegitimacy"], "test": "intermediate"},
+          "other": {"classes": ["age", "wealth", "residency", "occupation", "other"], "test": "rational"}
+        },
+        "strict_test_requirements": ["compelling_interest", "narrow_tailoring", "least_restrictive_means"],
+        "intermediate_test_requirements": ["important_interest", "substantial_relation"],
+        "rational_basis_requirements": ["legitimate_interest", "rational_connection"],
+        "substantive_due_process_catalog": ["marriage", "bodily_integrity", "parental_control", "intimate_association"],
+        "appointments_definition_officer_us": {"continuous_duties": true, "significant_authority": true},
+        "necessary_and_proper_test": {"plainly_adapted": true, "not_prohibited": true, "within_scope_of_end": true}
+      }
+    },
+    {
+      "id": "textualist_strict",
+      "label": "Textualist – Strict Thresholds",
+      "parameters": {
+        "incorporation": "total",
+        "probable_cause_threshold": 0.60,
+        "speedy_trial_max_days": 120,
+        "excessive_bail_multiplier_vs_max_fine": 6.0,
+        "excessive_fine_multiplier_vs_harm": 3.0,
+        "cruel_unusual_threshold": {"severity_min": 70, "unusualness_percentile_min": 70},
+        "speech_unprotected_categories": ["obscenity", "incitement", "true_threat", "fraud", "child_exploitation", "defamation"],
+        "arms_bearable_categories": ["handgun", "long_gun", "shotgun"],
+        "commerce_categories_enabled": ["channels", "instrumentalities", "foreign", "interstate", "indian"],
+        "equal_protection_tiers": {
+          "suspect": {"classes": ["race", "national_origin"], "test": "strict"},
+          "quasi_suspect": {"classes": ["sex"], "test": "intermediate"},
+          "other": {"classes": ["age", "wealth", "residency", "occupation", "religion", "other"], "test": "rational"}
+        }
+      }
+    },
+    {
+      "id": "liberty_forward_balanced",
+      "label": "Liberty-Forward – Balanced Government Functionality",
+      "parameters": {
+        "incorporation": "total",
+        "probable_cause_threshold": 0.40,
+        "speedy_trial_max_days": 210,
+        "excessive_bail_multiplier_vs_max_fine": 12.0,
+        "excessive_fine_multiplier_vs_harm": 5.0,
+        "cruel_unusual_threshold": {"severity_min": 85, "unusualness_percentile_min": 70},
+        "speech_unprotected_categories": ["incitement", "true_threat", "fraud", "child_exploitation"],
+        "arms_bearable_categories": ["handgun", "long_gun", "shotgun", "nonlethal"],
+        "commerce_categories_enabled": ["channels", "instrumentalities", "substantial_effects", "foreign", "interstate", "indian"],
+        "equal_protection_tiers": {
+          "suspect": {"classes": ["race", "national_origin", "religion"], "test": "strict"},
+          "quasi_suspect": {"classes": ["sex", "illegitimacy"], "test": "intermediate"},
+          "other": {"classes": ["age", "wealth", "residency", "occupation", "other"], "test": "rational"}
+        },
+        "substantive_due_process_catalog": ["marriage", "bodily_integrity", "parental_control", "intimate_association", "privacy_in_home"]
+      }
+    }
+  ]
+}

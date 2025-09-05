@@ -1,0 +1,228 @@
+{
+  "$schema": "https://example.org/constitution-engine/schema/data-model.v1.json",
+  "meta": {
+    "name": "US-Constitution-Deterministic-Engine Data Model",
+    "version": "1.0.0",
+    "created": "2025-09-05"
+  },
+  "anchors": {
+    "ClauseRef": {
+      "type": "object",
+      "required": ["id", "title", "ratified_on", "kind"],
+      "properties": {
+        "id": { "type": "string", "description": "Canonical ID, e.g., 'Art.I §8 cl.3' or 'Amend.I' or 'Amend.XIV §1'." },
+        "title": { "type": "string" },
+        "kind": { "type": "string", "enum": ["Article", "Amendment"] },
+        "ratified_on": { "type": "string", "format": "date" }
+      }
+    }
+  },
+  "enums": {
+    "GovernmentLevel": ["federal", "state", "territory", "district", "local"],
+    "Branch": ["legislative", "executive", "judicial", "other"],
+    "LawType": ["statute", "resolution", "treaty", "regulation", "executive_order", "state_constitution", "ordinance", "court_rule"],
+    "ProceedingType": ["criminal", "civil", "impeachment", "bankruptcy", "military", "administrative"],
+    "PunishmentType": ["fine", "imprisonment", "death", "forfeiture", "banishment", "probation", "corporal"],
+    "SpeechCategory": [
+      "political", "commercial", "obscenity", "incitement", "true_threat", "fraud",
+      "defamation", "child_exploitation", "fighting_words", "time_place_manner"
+    ],
+    "ArmsCategory": ["handgun", "long_gun", "shotgun", "knife", "nonlethal", "military_heavy", "explosive"],
+    "CommerceBucket": ["channels", "instrumentalities", "substantial_effects", "foreign", "interstate", "indian"],
+    "SuspectClass": ["race", "national_origin", "religion", "alienage"],
+    "QuasiSuspectClass": ["sex", "illegitimacy"],
+    "NonSuspectClass": ["age", "wealth", "residency", "occupation", "criminal_history", "other"],
+    "ElectionObject": ["President", "VicePresident", "Senator", "Representative", "Elector", "StateOfficer", "LocalOfficer"],
+    "EnumeratedPower": [
+      "Tax", "Borrow", "Commerce", "NaturalizationBankruptcy", "CoinMoney", "Counterfeiting",
+      "PostOffice", "IPProgress", "InferiorTribunals", "PiracyFeloniesHighSeas",
+      "DeclareWar", "MarqueReprisal", "Army", "Navy", "RulesOfForces",
+      "MilitiaCallForth", "MilitiaOrganize", "SeatOfGovernment", "NP"
+    ],
+    "StructuralCheck": [
+      "BicameralismPresentment", "OriginationOfRevenue", "Quorum", "JournalVote", "AdjournmentLimits",
+      "TreatyAdviceConsent", "AppointmentsAdviceConsent", "ImpeachmentProcess", "ElectionsTimesManner",
+      "OathNoReligiousTest"
+    ],
+    "Right": [
+      "Speech", "Press", "ReligionFreeExercise", "ReligionNoEstablishment", "Assembly", "Petition",
+      "Arms", "Quartering", "SearchSeizure", "GrandJury", "DoubleJeopardy", "SelfIncrimination",
+      "DueProcess", "JustCompensation", "SpeedyTrial", "PublicTrial", "ImpartialJury", "NoticeAccusation",
+      "Confrontation", "CompulsoryProcess", "AssistanceOfCounsel", "ExcessiveBail", "ExcessiveFines",
+      "CruelUnusualPunishment", "UnenumeratedRights", "ReservedPowers",
+      "AbolitionSlavery", "Citizenship", "PrivilegesImmunities", "EqualProtection", "DueProcess14",
+      "ApportionmentIncomeTax", "AlcoholProhibition", "AlcoholRepeal", "WomenSuffrage",
+      "PollTaxBan", "DCVotePresident", "PresidentialTermLimit", "PresidentialSuccession",
+      "PresidentialDisability", "CongressionalCompensationDelay", "VotingAge18", "LameDuckTransitions"
+    ],
+    "VerdictCode": [
+      "CONSTITUTIONAL", "UNCONSTITUTIONAL", "PARTIAL", "PREEMPTED_BY_SUPREMACY",
+      "STRUCTURALLY_INVALID", "AMENDMENT_SUPERSEDES", "NONJUSTICIABLE", "INSUFFICIENT_FACTS"
+    ]
+  },
+  "entities": {
+    "GovernmentUnit": {
+      "type": "object",
+      "required": ["id", "name", "level"],
+      "properties": {
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "level": {"type": "string", "enum": {"$ref": "#/enums/GovernmentLevel"}},
+        "branch": {"type": "string", "enum": {"$ref": "#/enums/Branch"}}
+      }
+    },
+    "Office": {
+      "type": "object",
+      "required": ["id", "title", "unit"],
+      "properties": {
+        "id": {"type": "string"},
+        "title": {"type": "string"},
+        "unit": {"$ref": "#/entities/GovernmentUnit"},
+        "term_start": {"type": "string", "format": "date"},
+        "term_end": {"type": "string", "format": "date"},
+        "qualification_facts": {
+          "type": "object",
+          "properties": {
+            "age": {"type": "integer"},
+            "years_citizen": {"type": "number"},
+            "residency_state": {"type": "string"},
+            "natural_born": {"type": "boolean"}
+          }
+        },
+        "oath_taken": {"type": "boolean"}
+      }
+    },
+    "Person": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {"type": "string"},
+        "age": {"type": "integer"},
+        "citizenship": {
+          "type": "object",
+          "properties": {
+            "status": {"type": "string", "enum": ["citizen", "noncitizen", "national"]},
+            "by_birth": {"type": "boolean"},
+            "naturalized_on": {"type": "string", "format": "date"},
+            "state_residencies": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "classes": {
+          "type": "array",
+          "items": {"type": "string", "enum": {"$ref": "#/enums/SuspectClass"}}
+        }
+      }
+    },
+    "NormativeInstrument": {
+      "type": "object",
+      "required": ["id", "level", "type", "enacted_on", "enacted_by"],
+      "properties": {
+        "id": {"type": "string"},
+        "level": {"type": "string", "enum": {"$ref": "#/enums/GovernmentLevel"}},
+        "type": {"type": "string", "enum": {"$ref": "#/enums/LawType"}},
+        "title": {"type": "string"},
+        "text_uri": {"type": "string"},
+        "enacted_on": {"type": "string", "format": "date"},
+        "enacted_by": {"$ref": "#/entities/GovernmentUnit"},
+        "subject_tags": {"type": "array", "items": {"type": "string"}},
+        "enum_power_claims": {"type": "array", "items": {"type": "string", "enum": {"$ref": "#/enums/EnumeratedPower"}}}
+      }
+    },
+    "Proceeding": {
+      "type": "object",
+      "required": ["id", "type", "forum"],
+      "properties": {
+        "id": {"type": "string"},
+        "type": {"type": "string", "enum": {"$ref": "#/enums/ProceedingType"}},
+        "forum": {"$ref": "#/entities/GovernmentUnit"},
+        "jury_size": {"type": "integer"},
+        "jury_unanimity_required": {"type": "boolean"},
+        "public_access": {"type": "boolean"},
+        "counsel_provided": {"type": "boolean"},
+        "steps_completed": {"type": "array", "items": {"type": "string"}},
+        "duration_days_accusation_to_trial": {"type": "integer"}
+      }
+    },
+    "Punishment": {
+      "type": "object",
+      "required": ["type", "severity_score_0_100"],
+      "properties": {
+        "type": {"type": "string", "enum": {"$ref": "#/enums/PunishmentType"}},
+        "severity_score_0_100": {"type": "number"},
+        "unusualness_percentile_0_100": {"type": "number"},
+        "fine_amount_usd": {"type": "number"},
+        "bail_amount_usd": {"type": "number"}
+      }
+    },
+    "Action": {
+      "type": "object",
+      "required": ["id", "actor", "action_type", "date"],
+      "properties": {
+        "id": {"type": "string"},
+        "actor": {"oneOf": [{"$ref": "#/entities/GovernmentUnit"}, {"$ref": "#/entities/Person"}]},
+        "date": {"type": "string", "format": "date"},
+        "action_type": {
+          "type": "string",
+          "enum": [
+            "SearchSeizure", "ExpressionRegulation", "ReligiousRegulation", "ArmsRegulation",
+            "Quartering", "PropertyTaking", "CriminalCharge", "BailSetting", "FineImposition",
+            "VotingRegulation", "BallotAccessRegulation", "Districting", "MilitaryDraft",
+            "MilitiaCall", "WarDeclaration", "TaxCollection", "Appointment", "Removal",
+            "Impeachment", "TreatyConclusion", "NaturalizationDecision", "BankruptcyOrder"
+          ]
+        },
+        "facts": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "Scenario": {
+      "type": "object",
+      "required": ["id", "profile_id", "facts"],
+      "properties": {
+        "id": {"type": "string"},
+        "profile_id": {"type": "string"},
+        "facts": {
+          "type": "object",
+          "properties": {
+            "instruments": {"type": "array", "items": {"$ref": "#/entities/NormativeInstrument"}},
+            "actions": {"type": "array", "items": {"$ref": "#/entities/Action"}},
+            "proceedings": {"type": "array", "items": {"$ref": "#/entities/Proceeding"}},
+            "persons": {"type": "array", "items": {"$ref": "#/entities/Person"}},
+            "offices": {"type": "array", "items": {"$ref": "#/entities/Office"}},
+            "context": {
+              "type": "object",
+              "properties": {
+                "commerce_bucket": {"type": "string", "enum": {"$ref": "#/enums/CommerceBucket"}},
+                "tax_base": {"type": "string", "enum": ["income", "property", "capitation", "imports", "other"]},
+                "war_state": {"type": "string", "enum": ["none", "declared_war", "authorized_force", "emergency"]},
+                "territorial_applicability": {"type": "string", "enum": ["states", "district", "territories", "military_base", "high_seas", "foreign"]}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "maps": {
+    "EnumeratedPowerToClause": {
+      "Tax": "Art.I §8 cl.1",
+      "Borrow": "Art.I §8 cl.2",
+      "Commerce": "Art.I §8 cl.3",
+      "NaturalizationBankruptcy": "Art.I §8 cl.4",
+      "CoinMoney": "Art.I §8 cl.5",
+      "Counterfeiting": "Art.I §8 cl.6",
+      "PostOffice": "Art.I §8 cl.7",
+      "IPProgress": "Art.I §8 cl.8",
+      "InferiorTribunals": "Art.I §8 cl.9",
+      "PiracyFeloniesHighSeas": "Art.I §8 cl.10",
+      "DeclareWar": "Art.I §8 cl.11",
+      "MarqueReprisal": "Art.I §8 cl.11",
+      "Army": "Art.I §8 cl.12",
+      "Navy": "Art.I §8 cl.13",
+      "RulesOfForces": "Art.I §8 cl.14",
+      "MilitiaCallForth": "Art.I §8 cl.15",
+      "MilitiaOrganize": "Art.I §8 cl.16",
+      "SeatOfGovernment": "Art.I §8 cl.17",
+      "NP": "Art.I §8 cl.18"
+    }
+  }
+}

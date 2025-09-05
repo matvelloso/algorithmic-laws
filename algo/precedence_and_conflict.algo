@@ -1,0 +1,67 @@
+# precedence_and_conflict.algo
+# Language: ConstitutionAlgo v1 (deterministic pseudocode)
+# Uses: data_model.json, interpretation_profiles.json, verdict_types.json
+
+ALGORITHM EvaluateScenario(Scenario s):
+  INPUT:
+    s :: data_model.json#/entities/Scenario
+    profile := interpretation_profiles.json#/profiles[s.profile_id]
+  OUTPUT:
+    EngineVerdict
+
+  STEP 0 — Normalize:
+    - Canonicalize all entities.
+    - Attach candidate ClauseRefs to each fact via TriggerIndex (see constitution_rules.algo rule headers).
+    - Expand profile parameters (e.g., incorporation_map).
+
+  STEP 1 — Structural Gates (Articles I–III, VI):
+    - GateG1: Validate Bicameralism + Presentment for any federal statute:
+        if instrument.type == "statute" and NOT PassedBy(House) OR NOT PassedBy(Senate) OR NOT PresentedTo(President):
+            record ClauseResult for Art.I §7 as STRUCTURALLY_INVALID(pass=false).
+    - GateG2: Origination of revenue bills (Art.I §7 cl.1).
+    - GateG3: Treaties/appointments advice & consent (Art.II §2).
+    - GateG4: Jurisdiction & Case/Controversy basics (Art.III).
+    - GateG5: Supremacy/Oath/No Religious Test (Art.VI).
+
+    IF any Structural Gate fails for a controlling instrument:
+        Return EngineVerdict { code: "STRUCTURALLY_INVALID", ... }
+
+  STEP 2 — Rights Tests (Amendments I–X, XIII–XV, XIX, XXIII–XXVI):
+    For each Action a in s.facts.actions:
+      Determine implicated rights via constitution_rules.algo triggers.
+      For each implicated right rule R:
+         run R(a, profile) -> ClauseResult
+         collect results_rights
+
+  STEP 3 — Power/Competence Tests (Articles I–IV, Amendments XVI, XXI):
+    For each NormativeInstrument n:
+      Determine claimed enumerated powers (n.enum_power_claims).
+      For each power rule P applicable to n:
+        run P(n, s.facts.context, profile) -> ClauseResult
+        collect results_powers
+
+  STEP 4 — Federal/State Conflict (Art.VI Supremacy; Art.I §10 state limits):
+    - Evaluate state prohibitions (bills of credit, impairing contracts, etc.).
+    - If valid federal law conflicts with state law in same domain: mark PrecedenceDecision Supremacy.
+
+  STEP 5 — Temporal & Amendment Supersession:
+    - Build timeline of applicable ClauseRefs (ratified_on).
+    - If later Amendment conflicts with earlier text: add PrecedenceDecision AmendmentSupersedes (later wins).
+    - Explicit repeal handling: 21st > 18th.
+
+  STEP 6 — Specificity & Rights-over-Powers:
+    - If a specific right constraint conflicts with general power authorization: PrecedenceDecision RightsOverPowers (right wins), unless later text explicitly carves exception (e.g., 13th punishment clause).
+    - If two permissions/conflicts remain: choose more specific clause (SpecificOverGeneral).
+
+  STEP 7 — Aggregate:
+    - If any controlling rights rule returns UNCONSTITUTIONAL and is not defeated by a higher-precedence permission, verdict := UNCONSTITUTIONAL.
+    - Else if all controlling rules pass, verdict := CONSTITUTIONAL.
+    - Else if mix, attempt severability: verdict := PARTIAL with remedies=["sever_provision"].
+    - If essential facts missing for a required metric, verdict := INSUFFICIENT_FACTS.
+
+  STEP 8 — Trace & Output:
+    - Return EngineVerdict with evaluated ClauseResults, PrecedenceDecisions, and selected remedies.
+
+HELPERS:
+  PassedBy(chamber): deterministic using recorded journal votes/quorum (Art.I §5).
+  Controlling: a rule is “controlling” if its Trigger matches the Scenario and its ClauseRef is non-superseded by Steps 4–6.

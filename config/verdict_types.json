@@ -1,0 +1,52 @@
+{
+  "$schema": "https://example.org/constitution-engine/schema/verdicts.v1.json",
+  "meta": {"version": "1.0.0"},
+  "types": {
+    "ClauseResult": {
+      "type": "object",
+      "required": ["clause", "result", "rule_id"],
+      "properties": {
+        "clause": {"$ref": "data_model.json#/anchors/ClauseRef"},
+        "rule_id": {"type": "string", "description": "ID from constitution_rules.algo"},
+        "result": {"type": "string", "enum": {"$ref": "data_model.json#/enums/VerdictCode"}},
+        "pass": {"type": "boolean"},
+        "metrics": {"type": "object", "additionalProperties": true},
+        "facts_used": {"type": "array", "items": {"type": "string"}},
+        "profile_parameters_used": {"type": "array", "items": {"type": "string"}},
+        "notes": {"type": "string"}
+      }
+    },
+    "PrecedenceDecision": {
+      "type": "object",
+      "required": ["basis", "winning_clause", "losing_clause"],
+      "properties": {
+        "basis": {"type": "string", "enum": ["AmendmentSupersedes", "Supremacy", "SpecificOverGeneral", "RightsOverPowers", "ExplicitRepeal", "TemporalLatest", "StructuralGate"]},
+        "winning_clause": {"$ref": "data_model.json#/anchors/ClauseRef"},
+        "losing_clause": {"$ref": "data_model.json#/anchors/ClauseRef"},
+        "explanation": {"type": "string"}
+      }
+    },
+    "EngineVerdict": {
+      "type": "object",
+      "required": ["code", "conclusion", "trace"],
+      "properties": {
+        "code": {"type": "string", "enum": {"$ref": "data_model.json#/enums/VerdictCode"}},
+        "conclusion": {"type": "string"},
+        "trace": {
+          "type": "object",
+          "properties": {
+            "evaluated_rules": {"type": "array", "items": {"$ref": "#/types/ClauseResult"}},
+            "precedence_steps": {"type": "array", "items": {"$ref": "#/types/PrecedenceDecision"}},
+            "structural_gates": {"type": "array", "items": {"type": "string"}},
+            "unresolved_facts": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "remedies": {
+          "type": "array",
+          "items": {"type": "string", "enum": ["invalidate_norm", "enjoin_action", "sever_provision", "narrow_construction", "remand_for_facts", "no_action"]}
+        },
+        "scope": {"type": "string", "enum": ["as_applied", "facial"]}
+      }
+    }
+  }
+}
